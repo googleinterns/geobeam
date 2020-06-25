@@ -14,13 +14,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import googlemaps
-from datetime import datetime
-import pprint
-from config import api_key
-import sys
+"""Generate a route that can be made into a User Motion File based on two locations.
 
-API_KEY = api_key
+Leave one blank line.  The rest of this docstring should contain an
+overall description of the module or program.  Optionally, it may also
+contain a brief description of exported classes and functions and/or usage
+examples.
+
+  Typical usage example:
+
+  foo = ClassFoo()
+  bar = foo.FunctionBar()
+"""
+
+import sys
+from datetime import datetime
+
+import googlemaps
+import pprint
+
+from map_requests import request_directions,request_elevations
 
 #average in meters per second
 WALKING_SPEED = 1.4
@@ -36,12 +49,19 @@ class Location(object):
   def __init__(self,latitude,longitude):
     self.latitude = latitude
     self.longitude = longitude
+    self.altitude = None
+    self.x = None
+    self.y = None
+    self.z = None
 
-  def toTuple(self):
+  def get_lat_lon_tuple(self):
     return (self.latitude,self.longitude)
 
+  def get_XYZ(Self):
+    pass
+
   def __repr__(self):
-    return 'Location(%s, %s)' % (self.latitude, self.longitude)
+    return 'Location(%s, %s, %s)' % (self.latitude, self.longitude, self.altitude)
 
 class Route(object):
   """An object for a route based on the input of a start and ending location
@@ -57,12 +77,26 @@ class Route(object):
     self.end_location = end_location
     self.route = []
     self.distances = []
+    self.durations = []
     self.polyline = None
 
   def create_route(self):
-    directions_response = request_directions(self.start_location,self.end_location)
-    self.route,self.distances,self.polyline = parse_directions_response(directions_response)
-
+    locations,self.distances,self.durations,self.polyline = request_directions(self.start_location.get_lat_lon_tuple(),self.end_location.get_lat_lon_tuple())
+    route = []
+    for location in locations:
+      latitude = location[0]
+      longitude = location[1]
+      route.append(Location(latitude,longitude))
+    self.route = route
+  
+  def add_altitudes(self):
+    locations = []
+    for location in self.route:
+      locations.append(location.get_lat_lon_tuple())
+    elevations = request_elevations(locations)
+    for location,elevation in zip(self.route,elevations):
+      location.altitude = elevation
+  
   def upsample_route(self):
     pass
 
@@ -70,53 +104,13 @@ class Route(object):
     pass
 
 
-def request_directions(start_location,end_location):
-  gmaps = googlemaps.Client(key=API_KEY)  
-  now = datetime.now()
-  directions_response= gmaps.directions(start_location.toTuple(), end_location.toTuple(), mode="walking", departure_time=now)
-  print(directions_response)
-  return directions_response
-
-def parse_directions_response(directions_response):
-  if len(directions_response) > 0:
-    route_response = directions_response[0]
-    route_points = []
-    route_distances = []
-    route_durations = []
-    route_polyline = route_response["overview_polyline"]["points"]
-
-    legs = route_response["legs"]
-    first_point = Location(latitude = legs[0]["steps"][0]["start_location"]["lat"], longitude = legs[0]["steps"][0]["start_location"]["lng"])
-    route_points.append(first_point)
-
-    for leg in legs:
-      for step in leg["steps"]:
-        new_point = Location(latitude = step["end_location"]["lat"], longitude = step["end_location"]["lng"])
-        new_distance = step["distance"]["value"]  #distance from step's start to end in meters
-        new_duration = step["duration"]["value"]  #duration from step's start to end in seconds
-        route_points.append(new_point)
-        route_distances.append(new_distance)
-        route_durations.append(new_duration)
-
-    print(route_points)
-    print(len(route_points))
-    print(route_distances)
-    print(len(route_distances))
-    return (route_points, route_distances, route_polyline)
-
-  else:
-    return "no routes, pick new points"
-
-def print_reponse(response):
-  pp = pprint.PrettyPrinter(depth=6)
-  pp.pprint(reponse)
-
-
 def main():
+  #add typechecking for input
   location1 = Location(37.417747,-122.086086)
   location2 = Location(37.421624, -122.096472)
   route = Route(location1,location2)
   route.create_route()
-
+  route.add_altitudes()
+  print(route.route)
 if __name__ == '__main__':
 	sys.exit(main())
