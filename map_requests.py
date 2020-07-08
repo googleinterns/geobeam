@@ -12,87 +12,100 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Handles requests and parsing of Google Maps API calls
-
-Leave one blank line.  The rest of this docstring should contain an
-overall description of the module or program.  Optionally, it may also
-contain a brief description of exported classes and functions and/or usage
-examples.
-
-  Typical usage example:
-
-  foo = ClassFoo()
-  bar = foo.FunctionBar()
+"""Handles requests and parsing of Google Maps API calls.
 """
 
-import googlemaps
-from datetime import datetime
+import datetime
 import pprint
+
 from config import api_key
+import googlemaps
 
+# TODO(ameles) wrap map requests in a class so api isn't hard coded in
 API_KEY = api_key
-gmaps = googlemaps.Client(key=API_KEY)
+GMAPS = googlemaps.Client(key=API_KEY)
 
-def request_directions(start_location,end_location):
-  """request directions from start_location to end_location
+
+def request_directions(start_location, end_location):
+  """Request directions from start_location to end_location.
 
   Args:
     start_location: tuple of floats (lat, lon) for starting point
     end_location: tuple of floats (lat, lon) for ending point
   Returns:
     a list of directions in the deserialized Maps API response format
-  """ 
-  now = datetime.now()
-  directions_response= gmaps.directions(start_location, end_location, mode="walking", departure_time=now)
-  print(directions_response)
+    https://developers.google.com/maps/documentation/directions/intro#DirectionsResponses
+  """
+  now = datetime.datetime.now()
+  directions_response = GMAPS.directions(start_location, end_location,
+                                         mode="walking", departure_time=now)
   parsed_directions_response = parse_directions_response(directions_response)
   return parsed_directions_response
 
+
 def parse_directions_response(directions_response):
-  if len(directions_response) > 0:
+  """Extract basic information relevant to route from the response.
+
+  Args:
+    directions_response: list of directions in the deserialized
+    Maps API response format
+  Returns:
+    if a valid route is found a tuple containing:
+      a list of the (lat,lon) points on the route
+      a list of distances between those points (in meters)
+      a string of the encoded polyline that can be plotted to show route
+    otherwise: raises a Value Error since no routes were produced
+  """
+  if directions_response:
     route_response = directions_response[0]
     route_points = []
     route_distances = []
-    route_durations = []
     route_polyline = route_response["overview_polyline"]["points"]
 
     legs = route_response["legs"]
-    first_point = (legs[0]["steps"][0]["start_location"]["lat"], legs[0]["steps"][0]["start_location"]["lng"])
+    first_point = (legs[0]["steps"][0]["start_location"]["lat"],
+                   legs[0]["steps"][0]["start_location"]["lng"])
     route_points.append(first_point)
 
     for leg in legs:
       for step in leg["steps"]:
-        new_point = (step["end_location"]["lat"], step["end_location"]["lng"])
-        new_distance = step["distance"]["value"]  #distance from step's start to end in meters
-        new_duration = step["duration"]["value"]  #duration from step's start to end in seconds
+        new_point = (step["end_location"]["lat"],
+                     step["end_location"]["lng"])
+        new_distance = step["distance"]["value"]  # distance from step's start to end in meters
         route_points.append(new_point)
         route_distances.append(new_distance)
-        route_durations.append(new_duration)
 
-    return (route_points, route_distances, route_durations, route_polyline)
+    return (route_points, route_distances, route_polyline)
 
   else:
-    return "no routes, pick new points"
+    raise ValueError("no route between start and end, try new points")
+
 
 def request_elevations(locations):
-  """request elevations for a list of (lat,lon) coordinates
+  """Request elevations for a list of (lat,lon) coordinates.
 
   Args:
     locations: list of (lat,lon)
   Returns:
-    a list of elevation responses in the deserialized Elevation API response format in order of input locations
+    a list of elevation responses in the deserialized Elevation API response
+    format in order of input locations
   """
-  elevations_response= gmaps.elevation(locations)
-  print(elevations_response)
+  elevations_response = GMAPS.elevation(locations)
   parsed_elevations_response = parse_elevations_response(elevations_response)
   return parsed_elevations_response
 
+
 def parse_elevations_response(elevations_response):
-  elevations = []
-  for result in elevations_response:
-    elevations.append(result["elevation"])
-  return elevations
+  """Extract elevation values in order from API response.
+
+  Args:
+    elevations_response: list of elevation responses in the deserialized
+    Elevation API response format
+  Returns:
+    a list of elevations (in meters) in the same order as given response
+  """
+  return [result["elevation"] for result in elevations_response]
 
 def print_reponse(response):
   pp = pprint.PrettyPrinter(depth=6)
-  pp.pprint(reponse)
+  pp.pprint(response)
