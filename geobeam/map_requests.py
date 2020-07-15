@@ -18,7 +18,7 @@
 import datetime
 import pprint
 
-from config import api_key
+from geobeam.config import api_key
 import googlemaps
 
 # TODO(ameles) wrap map requests in a class so api isn't hard coded in
