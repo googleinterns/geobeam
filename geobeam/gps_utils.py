@@ -1,6 +1,6 @@
 # Copyright 2020 Google LLC
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
+# Licensed under the Apache License, Version 2.0 (the "License")
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -82,3 +82,50 @@ def geodetic_to_cartesian(latitude, longitude, altitude):
   y = (n_vector + altitude)*cos_latitude*sin_longitude
   z = ((1.0-eccentricity_sq)*n_vector + altitude)*sin_latitude
   return (x, y, z)
+
+def cartesian_to_geodetic(x, y, z):
+  """Convert a ECEF cartesian coordinate to a lat/lng/alt geodetic coordinate.
+
+  Produces a geodetic coordinate (lat, lon, alt) from a
+  earth-centered, earth-fixed (ECEF) cartesian coordinates from and was adapted
+  from c code in bladeGPS:
+  https://github.com/osqzss/bladeGPS/blob/master/gpssim.c
+
+  Args:
+    x: float, x coordinate
+    y: float, y coordinate
+    z: float, z coordinate
+  Returns:
+    A tuple of (latitude, longitude, altitude) with latitude and longitude
+    as floats in Decimal Degrees and altitiude as a float in meters. If there
+    is no valid lat/lon/alt for the given xyz vector, a vector 
+    of (0.0, 0.0, -6378137.0) is returned
+  """
+  eps = 1E-3 # convergence criteria
+  eccentricity_sq = _WGS84_ECCENTRICITY**2
+
+  norm_vector = math.sqrt(x*x+y*y+z*z)
+  if (norm_vector < eps):
+    # Invalid ECEF vector
+    return (0.0, 0.0, -_WGS84_EARTH_RADIUS)
+
+  rho_sq = x*x + y*y
+  dz = eccentricity_sq*z
+
+  while True:
+    zdz = z + dz
+    nh = math.sqrt(rho_sq + zdz*zdz)
+    sin_lat = zdz / nh
+    n = _WGS84_EARTH_RADIUS / math.sqrt(1.0-eccentricity_sq*sin_lat*sin_lat)
+    dz_new = n*eccentricity_sq*sin_lat
+
+    if (math.fabs(dz-dz_new) < eps):
+      break
+
+    dz = dz_new
+
+  latitude = math.degrees(math.atan2(zdz, math.sqrt(rho_sq)))
+  longitude= math.degrees(math.atan2(y, x))
+  altitude = nh - n
+
+  return (latitude, longitude, altitude)

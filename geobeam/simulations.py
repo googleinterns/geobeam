@@ -15,14 +15,15 @@
 """Classes for Static and Dynamic Simulations, and for Simulation Sets.
 
   Typical usage example:
-  simulation_set_builder = SimulationSetBuilder()
-  simulation_set_builder.add_dynamic_route(file_path)
-  simulation_set_builder.add_dynamic_route(file_path, run_duration=30, gain=-2)
-  simulation_set_builder.add_static_route(27.417747, -112.086086, run_duration=10, gain=-2)
-  simulation_set = simulation_set_builder.build()
+  simulation_set = (SimulationSetBuilder()
+    .add_dynamic_route(file_path, gain=-2)
+    .add_dynamic_route(file_path, run_duration=30, gain=-2)
+    .add_static_route(27.417747, -112.086086, run_duration=10, gain=-2)
+    .build())
   simulation_set.run_simulations()
 """
 
+import csv
 import datetime
 import subprocess
 import time
@@ -98,9 +99,17 @@ class Simulation():
     Args:
       log_file_object: open file object to write to
     """
-    log_file_object.write("\n" + str(self) + "\n")
-    log_file_object.write("Start Time: " + self._start_time.strftime("%Y-%m-%d,%H:%M:%S") + "\n")
-    log_file_object.write("End Time: " + self._end_time.strftime("%Y-%m-%d,%H:%M:%S") + "\n")
+    start_time_string = self._start_time.isoformat()
+    end_time_string = self._end_time.isoformat()
+    fields = ["simulation_type", "run_duration", "gain", "start_time", "end_time"]
+    values = [self.__class__.__name__, self._run_duration, self._gain, start_time_string, end_time_string]
+    log_file_object.write("\n")
+    csvwriter = csv.writer(log_file_object, delimiter=",")
+    csvwriter.writerow(fields)
+    csvwriter.writerow(values)
+
+  def __repr__(self):
+    return "Simulation(run_duration=%s, gain=%s)" % (self._run_duration, self._gain)
 
 
 class StaticSimulation(Simulation):
@@ -131,8 +140,30 @@ class StaticSimulation(Simulation):
                                             location=location)
     return
 
+  def log_run(self, log_file_object):
+    """Log start time, end time, type of simulation, and points.
+
+    Logs timestamped file to open file_object with Simulation object string,
+    start time, and end time
+
+    Args:
+      log_file_object: open file object to write to
+    """
+    start_time_string = self._start_time.isoformat()
+    end_time_string = self._end_time.isoformat()
+    fields = ["simulation_type", "latitude", "longitude", "run_duration", "gain", "start_time", "end_time"]
+    values = [self.__class__.__name__, self._latitude, self._longitude,
+              self._run_duration, self._gain, start_time_string, end_time_string]
+    log_file_object.write("\n")
+    csvwriter = csv.writer(log_file_object, delimiter=",")
+    csvwriter.writerow(fields)
+    csvwriter.writerow(values)
+
   def __repr__(self):
-    return "StaticSimulation(run_duration=%s, gain=%s, latitude=%s, longitude=%s)" % (self._run_duration, self._gain, self._latitude, self._longitude)
+    return "StaticSimulation(latitude=%s, longitude=%s, run_duration=%s, gain=%s)" % (self._latitude,
+                                                                                      self._longitude,
+                                                                                      self._run_duration,
+                                                                                      self._gain)
 
 
 class DynamicSimulation(Simulation):
@@ -171,16 +202,30 @@ class DynamicSimulation(Simulation):
     Args:
       log_file_object: open file object to write log to
     """
-    Simulation.log_run(self, log_file_object)
+    start_time_string = self._start_time.isoformat()
+    end_time_string = self._end_time.isoformat()
+    fields = ["simulation_type", "file_path", "run_duration", "gain", "start_time", "end_time"]
+    values = [self.__class__.__name__, self._file_path, self._run_duration,
+              self._gain, start_time_string, end_time_string]
+    log_file_object.write("\n")
+    csvwriter = csv.writer(log_file_object, delimiter=",")
+    csvwriter.writerow(fields)
+    csvwriter.writerow(values)
+
+    csvwriter.writerow(["time_from_zero", "x", "y", "z"])
     total_time = (self._end_time-self._start_time).total_seconds()
     route_file_path = self._file_path
     with open(route_file_path, "r") as route_file:
       lines_to_read = int(total_time*10)  # 10 points per second
       for _ in range(lines_to_read):
-        log_file_object.write(next(route_file))
+        try:
+          log_file_object.write(next(route_file))
+        except StopIteration:
+          # reached end of source file
+          break
 
   def __repr__(self):
-    return "DynamicSimulation(run_duration=%s, gain=%s, file_name=%s)" % (self._run_duration, self._gain, self._file_path)
+    return "DynamicSimulation(file_path=%s, run_duration=%s, gain=%s)" % (self._file_path, self._run_duration, self._gain)
 
 
 class SimulationSet():
@@ -200,7 +245,7 @@ class SimulationSet():
     self._simulations = simulations
     self._current_simulation_index = None
     now = datetime.datetime.utcnow()
-    self._log_filename = now.strftime("GPSSIM-%Y-%m-%d_%H:%M:%S")
+    self._log_filename = now.strftime("GPSSIM-%Y-%m-%d_%H:%M:%S.csv")
 
   def run_simulations(self):
     """Starts simulations and navigates through according to user key press.
@@ -215,7 +260,7 @@ class SimulationSet():
     print("------------------------------------------------")
 
     self._switch_simulation(0)
-    while self._current_simulation_index < len(self._simulations):
+    while True:
       current_simulation = self._get_current_simulation()
       simulation_running = current_simulation.is_running()
       key_hit = key_pressed()

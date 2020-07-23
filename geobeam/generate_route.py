@@ -80,7 +80,7 @@ class Route():
       file_name: name of file to write route to
     """
     write_array = [location.get_xyz_tuple() for location in self.route]
-    _write_to_csv(file_name, write_array)
+    _write_to_csv(FILE_FOLDER_PATH+file_name, write_array)
 
 
 class TimedRoute(Route):

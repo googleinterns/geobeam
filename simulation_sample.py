@@ -22,7 +22,7 @@ def main():
   file_path = os.path.abspath("geobeam/user_motion_files/" + file_name)
 
   simulation_set = (SimulationSetBuilder()
-    .add_dynamic_route(file_path)
+    .add_dynamic_route(file_path, gain=-2)
     .add_dynamic_route(file_path, run_duration=30, gain=-2)
     .add_static_route(27.417747, -112.086086, run_duration=10, gain=-2)
     .build())
