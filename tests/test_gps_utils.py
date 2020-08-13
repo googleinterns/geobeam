@@ -5,13 +5,6 @@ from geobeam import gps_utils
 
 
 class LocationTest(unittest.TestCase):
-  def setUp(self):
-    self.geodetic_one = (37.4178134, -122.086011, 3.45)
-    self.ecef_one = (-2694180.667, -4297222.330, 3854325.576)
-    self.geodetic_two = (37.4211366, -122.0936967, -10.0)
-    self.ecef_two = (-2694174.993, -4297213.279, 3854317.404)
-    self.geodetic_three = (31.230441, 121.467685, 4.50)
-    self.ecef_three = (-2849585.509, 4655993.331, 3287769.376)
 
   @patch('geobeam.gps_utils.geodetic_to_cartesian')
   def test_location_init(self, mock_geodetic_to_cartesian):
@@ -37,13 +30,14 @@ class LocationTest(unittest.TestCase):
     lat, lon = geodetic_coordinate
 
     location = gps_utils.Location(lat, lon)
-    
+
     self.assertEqual(location.x, ecef_coordinate[0])
     self.assertEqual(location.y, ecef_coordinate[1])
     self.assertEqual(location.z, ecef_coordinate[2])
     self.assertEqual(location.latitude, lat)
     self.assertEqual(location.longitude, lon)
     self.assertEqual(location.altitude, 0)
+
 
 class CoordinateConversionTest(unittest.TestCase):
 
@@ -87,5 +81,23 @@ class CoordinateConversionTest(unittest.TestCase):
 
     self.coordinate_assertions(geodetic_shanghai, ecef_shanghai)
 
+
+class CalculateDistanceTest(unittest.TestCase):
+
+  def test_calculate_distance_returns_zero_for_same_coordinate(self):
+    coordinate_1 = (37.1111, -122.1124)
+
+    result = gps_utils.calculate_distance(coordinate_1, coordinate_1)
+
+    self.assertAlmostEqual(result, 0.0, places=8)
+
+  def test_calculate_distance_returns_correct_value(self):
+    coordinate_1 = (37.1111, -122.1111)
+    coordinate_2 = (40.7777, -125.7777)
+
+    result = gps_utils.calculate_distance(coordinate_1, coordinate_2)
+
+    self.assertAlmostEqual(result, 516346.3, places=1)
+
 if __name__ == '__main__':
-    unittest.main()
+  unittest.main()

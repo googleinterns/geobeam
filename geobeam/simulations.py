@@ -245,7 +245,7 @@ class SimulationSet():
     self._simulations = simulations
     self._current_simulation_index = None
     now = datetime.datetime.utcnow()
-    self._log_filename = now.strftime("GPSSIM-%Y-%m-%d_%H:%M:%S.csv")
+    self._log_filename = now.strftime("GPSSIM-%Y-%m-%d_%H-%M-%S.csv")
 
   def run_simulations(self):
     """Starts simulations and navigates through according to user key press.

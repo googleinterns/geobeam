@@ -53,14 +53,12 @@ def parse_directions_response(directions_response):
     if a valid route is found a tuple containing:
       a list of the (lat,lon) points on the route
       a list of distances between those points (in meters)
-      a string of the encoded polyline that can be plotted to show route
     otherwise: raises a Value Error since no routes were produced
   """
   if directions_response:
     route_response = directions_response[0]
     route_points = []
     route_distances = []
-    route_polyline = route_response["overview_polyline"]["points"]
 
     legs = route_response["legs"]
     first_point = (legs[0]["steps"][0]["start_location"]["lat"],
@@ -75,7 +73,7 @@ def parse_directions_response(directions_response):
         route_points.append(new_point)
         route_distances.append(new_distance)
 
-    return (route_points, route_distances, route_polyline)
+    return (route_points, route_distances)
 
   else:
     raise ValueError("no route between start and end, try new points")

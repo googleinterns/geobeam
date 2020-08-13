@@ -12,7 +12,6 @@ from geobeam.simulations import Simulation
 from geobeam.simulations import StaticSimulation
 
 
-
 class SimulationSetRunTests(unittest.TestCase):
 
   def setUp(self):
@@ -21,7 +20,7 @@ class SimulationSetRunTests(unittest.TestCase):
     simulation_three = create_autospec(DynamicSimulation)
     self.simulations = [simulation_one, simulation_two, simulation_three]
     self.simulation_set = None
-    self.mock_now = mock_now = datetime(2020, 8, 15, 5, 0, 0)
+    self.mock_now = datetime(2020, 8, 15, 5, 0, 0)
 
   def update_index(self, index):
     self.simulation_set._current_simulation_index = index
@@ -33,7 +32,7 @@ class SimulationSetRunTests(unittest.TestCase):
 
     self.simulation_set = geobeam.simulations.SimulationSet(self.simulations)
 
-    self.assertEqual(self.simulation_set._log_filename, "GPSSIM-2020-08-15_05:00:00.csv")
+    self.assertEqual(self.simulation_set._log_filename, "GPSSIM-2020-08-15_05-00-00.csv")
 
   @patch('geobeam.simulations.SimulationSet._get_current_simulation')
   @patch('geobeam.simulations.SimulationSet._log_current_simulation')
@@ -41,8 +40,9 @@ class SimulationSetRunTests(unittest.TestCase):
   @patch('geobeam.simulations.key_pressed')
   @patch('geobeam.simulations.datetime.datetime')
   @patch('builtins.print')
-  def test_run_simulations(self, mock_print, mock_datetime, mock_key_pressed, 
-                           mock_switch_simulation, mock_log_current_simulation, mock_get_current_simulation):
+  def test_run_simulations(self, mock_print, mock_datetime, mock_key_pressed,
+                           mock_switch_simulation, mock_log_current_simulation,
+                           mock_get_current_simulation):
     mock_datetime.utcnow.return_value = self.mock_now
     # 1 running, 2 running, 1 ends, 2 ends, 3 ends
     mock_key_pressed.side_effect = ["n", "p", None, None, None]
@@ -59,7 +59,7 @@ class SimulationSetRunTests(unittest.TestCase):
 
     self.simulation_set.run_simulations()
 
-    self.assertEqual(self.simulation_set._current_simulation_index,None)
+    self.assertIsNone(self.simulation_set._current_simulation_index)
     switch_calls = [call(0), call(1), call(0), call(1), call(2)]
     mock_switch_simulation.assert_has_calls(switch_calls)
     mock_log_current_simulation.assert_called_once()
@@ -99,6 +99,7 @@ class SimulationSetRunTests(unittest.TestCase):
     self.assertEqual(self.simulations[1].is_running.call_count, 2)
     self.assertEqual(self.simulations[2].is_running.call_count, 0)
 
+
 class SimulationSetTest(unittest.TestCase):
 
   def setUp(self):
@@ -107,8 +108,7 @@ class SimulationSetTest(unittest.TestCase):
     simulation_three = create_autospec(DynamicSimulation)
     self.simulations = [simulation_one, simulation_two, simulation_three]
 
-  @patch('geobeam.simulations.datetime.datetime')
-  def test_get_current_simulation_not_running(self, mock_datetime):
+  def test_get_current_simulation_not_running(self):
     simulation_set = geobeam.simulations.SimulationSet(self.simulations)
     simulation_set._current_simulation_index = None
 
@@ -116,8 +116,7 @@ class SimulationSetTest(unittest.TestCase):
 
     self.assertIsNone(result)
 
-  @patch('geobeam.simulations.datetime.datetime')
-  def test_get_current_simulation(self, mock_datetime):
+  def test_get_current_simulation(self):
     simulation_set = geobeam.simulations.SimulationSet(self.simulations)
     simulation_set._current_simulation_index = 1
 
@@ -139,12 +138,11 @@ class SimulationSetTest(unittest.TestCase):
       simulation_set._log_current_simulation()
 
     self.simulations[1].log_run.assert_called_once()
-    open_mock.assert_called_with("simulation_logs/GPSSIM-2020-08-15_05:00:00.csv", "a")
+    open_mock.assert_called_with("simulation_logs/GPSSIM-2020-08-15_05-00-00.csv", "a")
 
   @patch('geobeam.simulations.SimulationSet._get_current_simulation')
   @patch('geobeam.simulations.SimulationSet._log_current_simulation')
-  @patch('geobeam.simulations.datetime.datetime')
-  def test_switch_simulation_from_start(self, mock_datetime, mock_log_current_simulation, mock_get_current_simulation):
+  def test_switch_simulation_from_start(self, mock_log_current_simulation, mock_get_current_simulation):
     simulation_set = geobeam.simulations.SimulationSet(self.simulations)
     mock_get_current_simulation.return_value = None
     simulation_set._current_simulation_index = None
@@ -157,8 +155,7 @@ class SimulationSetTest(unittest.TestCase):
 
   @patch('geobeam.simulations.SimulationSet._get_current_simulation')
   @patch('geobeam.simulations.SimulationSet._log_current_simulation')
-  @patch('geobeam.simulations.datetime.datetime')
-  def test_switch_simulation_next(self, mock_datetime, mock_log_current_simulation, mock_get_current_simulation):
+  def test_switch_simulation_next(self, mock_log_current_simulation, mock_get_current_simulation):
     simulation_set = geobeam.simulations.SimulationSet(self.simulations)
     mock_get_current_simulation.return_value = self.simulations[0]
     simulation_set._current_simulation_index = 0
@@ -172,9 +169,8 @@ class SimulationSetTest(unittest.TestCase):
 
   @patch('geobeam.simulations.SimulationSet._get_current_simulation')
   @patch('geobeam.simulations.SimulationSet._log_current_simulation')
-  @patch('geobeam.simulations.datetime.datetime')
   @patch('builtins.print')
-  def test_switch_simulation_after_last(self, mock_print, mock_datetime, mock_log_current_simulation, mock_get_current_simulation):
+  def test_switch_simulation_after_last(self, mock_print, mock_log_current_simulation, mock_get_current_simulation):
     simulation_set = geobeam.simulations.SimulationSet(self.simulations)
     mock_get_current_simulation.return_value = self.simulations[2]
     simulation_set._current_simulation_index = 2
@@ -189,9 +185,8 @@ class SimulationSetTest(unittest.TestCase):
 
   @patch('geobeam.simulations.SimulationSet._get_current_simulation')
   @patch('geobeam.simulations.SimulationSet._log_current_simulation')
-  @patch('geobeam.simulations.datetime.datetime')
   @patch('builtins.print')
-  def test_switch_simulation_before_first(self, mock_print, mock_datetime, mock_log_current_simulation, mock_get_current_simulation):
+  def test_switch_simulation_before_first(self, mock_print, mock_log_current_simulation, mock_get_current_simulation):
     simulation_set = geobeam.simulations.SimulationSet(self.simulations)
     mock_get_current_simulation.return_value = self.simulations[0]
     simulation_set._current_simulation_index = 0

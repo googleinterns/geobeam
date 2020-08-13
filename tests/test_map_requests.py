@@ -12,7 +12,6 @@ class MapRequestsTest(unittest.TestCase):
     point_three = (37.4211366, -122.0936967)
     point_four = (37.4216022, -122.0964737)
 
-    self.polyline = "idkcFp|chVSYW?Ai@kB@Y?ClAAjAQ?AV?BM@AH\\C`E@dFAvB?nFB@J|B@]zN_@`PAh@EzAwAL_AHqAHaEZuERgCRkAF@V[LW@q@BWESKKHGNOTWBwCBK?}ANUHGFEHOZMAATAz@EtBOjH"
     self.points = [point_one, point_two, point_three, point_four]
     self.distances = [16, 13, 266]
 
@@ -29,19 +28,16 @@ class MapRequestsTest(unittest.TestCase):
             {
               'distance': {'text': '52 ft', 'value': self.distances[0]},
               'end_location': {'lat': point_two[0], 'lng': point_two[1]},
-              'polyline': {'points': 'idkcFp|chVSY'}, 
               'start_location': {'lat': point_one[0], 'lng': point_one[1]}
             },
             {
               'distance': {'text': '43 ft', 'value': self.distances[1]},
               'end_location': {'lat': point_three[0], 'lng': point_three[1]},
-              'polyline': {'points': '}dkcFv{chVW?'},
               'start_location': {'lat': point_two[0], 'lng': point_two[1]}
             },
             {
               'distance': {'text': '0.2 mi', 'value': self.distances[2]},
               'end_location': {'lat': point_four[0], 'lng': point_four[1]},
-              'polyline': {'points': 'cykcFrlehVUHCDC@CDABCDKTMAAT?JAn@Cz@Ax@AVGpCCnAAp@'},
               'start_location': {'lat': point_three[0], 'lng': point_three[1]}
             }
           ],
@@ -49,7 +45,6 @@ class MapRequestsTest(unittest.TestCase):
           'via_waypoint': []
           }
         ],
-        'overview_polyline': {'points': self.polyline},
         'summary': 'Rengstorff Ave'
       }
     ]
@@ -96,7 +91,7 @@ class MapRequestsTest(unittest.TestCase):
   @patch('geobeam.map_requests.parse_directions_response')
   def test_request_directions(self, mock_parse_directions_response, mock_gmaps_directions, mock_datetime):
     mock_gmaps_directions.return_value = self.sample_directions_response
-    mock_parse_directions_response.return_value = (self.points, self.distances, self.polyline)
+    mock_parse_directions_response.return_value = (self.points, self.distances)
 
     result = map_requests.request_directions(self.points[0], self.points[-1])
 
@@ -104,14 +99,12 @@ class MapRequestsTest(unittest.TestCase):
     mock_parse_directions_response.assert_called_once_with(self.sample_directions_response)
     self.assertEqual(result[0], self.points)
     self.assertEqual(result[1], self.distances)
-    self.assertEqual(result[2], self.polyline)
 
   def test_parse_directions(self):
     result = map_requests.parse_directions_response(self.sample_directions_response)
     
     self.assertEqual(result[0], self.points)
     self.assertEqual(result[1], self.distances)
-    self.assertEqual(result[2], self.polyline)
 
   def test_parse_directions_invalid_response(self):
     with self.assertRaises(ValueError):

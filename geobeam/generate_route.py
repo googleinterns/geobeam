@@ -21,57 +21,112 @@ which can be used to create a user motion file (10 Hz) with various simulated
 speeds (walking, running, biking)
 
   Typical usage example:
-  user_motion = TimedRoute(location1,location2,TRANSPORT_SPEEDS["walking"],10)
-  user_motion.create_route()
-  user_motion.write_route("usermotiontestfile.csv")
+  user_motion = TimedRoute.from_start_and_end(location1, location2, TRANSPORT_SPEEDS["walking"], TEN_HZ)
+  user_motion = TimedRoute.from_gpx(/path/to/gpx/file, TRANSPORT_SPEEDS["walking"], TEN_HZ)
+  user_motion.write_route("userwalking.csv")
 """
 
 import csv
+import os
 
+from geobeam.gps_utils import calculate_distance
 from geobeam.gps_utils import Location
+from geobeam.gpx_parser import GpxFileParser
 from geobeam.map_requests import request_directions
 from geobeam.map_requests import request_elevations
 
 FILE_FOLDER_PATH = "geobeam/user_motion_files/"
 
+
 class Route():
   """An object for a route based on the input of a start and ending location.
 
   Attributes:
-    start_location: a Location object for the start of the route
-    end_location: a Location object for the end of the route
     route: a list of Location objects for each point on the route
     distances: a list of distances between each pair of consecutive
     locations in meters
-    polyline: an encoded format for the route given by the Maps API
-    for ease of drawing
   """
 
-  def __init__(self, start_location, end_location):
-    self.start_location = start_location
-    self.end_location = end_location
-    self.route = []
-    self.distances = []
-    self.polyline = None
-    self.create_route()
+  def __init__(self, route, distances):
+    self.route = route
+    self.distances = distances
 
-  def create_route(self):
-    """Create a route by requesting from Maps API and then adding altitudes/xyz to each point.
+  @classmethod
+  def from_start_and_end(cls, start_location, end_location):
+    """Creates route from start and end and initializes Route object.
+
+    Args:
+      start_location: a Location object for the start of the route
+      end_location: a Location object for the end of the route
+
+    Returns:
+      initialized Route object
+    """
+    route, distances = cls._generate_route_from_start_and_end(start_location,
+                                                              end_location)
+    return cls(route, distances)
+
+  @classmethod
+  def from_gpx(cls, gpx_source_path):
+    """Creates route from GPX file and initializes Route object.
+
+    Args:
+      gpx_source_path: path to gpx file to parse for route
+
+    Returns:
+      initialized Route object
+    """
+    route, distances = cls._generate_route_from_gpx(gpx_source_path)
+    return cls(route, distances)
+
+  def _generate_route_from_start_and_end(start_location, end_location):
+    """Create a route by requesting from Maps API and then adding altitudes/xyz.
 
     sets attributes for the class based on API response and then calls
     add_altitudes() to request elevation data for each point, and then add xyz
     conversion to each point
+
+    Args:
+      start_location: a Location object for the start of the route
+      end_location: a Location object for the end of the route
+
+    Returns:
+      list of Location objects in order of the points on the route
+      a list of distances between those points (in meters)
     """
     route = []
-    locations, self.distances, self.polyline = request_directions(self.start_location.get_lat_lon_tuple(), self.end_location.get_lat_lon_tuple())
+    locations, distances = request_directions(start_location.get_lat_lon_tuple(),
+                                              end_location.get_lat_lon_tuple())
     elevations = request_elevations(locations)
     for location, altitude in zip(locations, elevations):
       latitude = location[0]
       longitude = location[1]
       route.append(Location(latitude, longitude, altitude))
-    self.route = route
-    self.start_location = route[0]
-    self.end_location = route[-1]
+    return (route, distances)
+
+  def _generate_route_from_gpx(gpx_source_path):
+    """Create a route by parsing track points from GPX File.
+
+    Args:
+      gpx_source_path: file path for GPX file to be parsed and used for route
+
+    Returns:
+      list of Location objects in order of the points on the route
+      a list of distances between those points (in meters)
+    """
+    route = []
+    distances = []
+    gpx_file_parser = GpxFileParser()
+    locations = gpx_file_parser.parse_file(gpx_source_path)
+    previous_location = None
+
+    for location in locations:
+      route.append(Location(*location))
+      if previous_location:
+        distances.append(calculate_distance(previous_location, location))
+      previous_location = location
+
+    return (route, distances)
 
   def write_route(self, file_name):
     """Write route into csv with each line as x,y,z.
@@ -87,25 +142,53 @@ class TimedRoute(Route):
   """An object for a route that has a desired speed and point frequency.
 
   Attributes:
-    start_location: a Location object for the start of the route
-    end_location: a Location object for the end of the route
     speed: how fast the person moves through the route in meters/second
     frequency: how many points per second the timed route should have (Hz)
     route: a list of Location objects for each point on the route
     distances: a list of distances for each pair of consecutive locations
     in meters
-    polyline: an encoded format for the route given by the Maps API
-    for ease of drawing
   """
 
-  def __init__(self, start_location, end_location, speed, frequency):
+  def __init__(self, route, distances, speed, frequency):
     self.speed = speed
     self.frequency = frequency
-    Route.__init__(self, start_location, end_location)
+    Route.__init__(self, route, distances)
 
-  def create_route(self):
-    Route.create_route(self)
-    self.upsample_route()
+  @classmethod
+  def from_start_and_end(cls, start_location, end_location, speed, frequency):
+    """Creates route from start and end and initializes TimedRoute object.
+
+    Args:
+      start_location: a Location object for the start of the route
+      end_location: a Location object for the end of the route
+      speed: float, speed of route in meters/second
+      frequency: float, points per second for timed route (Hz)
+
+    Returns:
+      initialized and upsampled TimedRoute object
+    """
+    route, distances = cls._generate_route_from_start_and_end(start_location,
+                                                              end_location)
+    timed_route = cls(route, distances, speed, frequency)
+    timed_route.upsample_route()
+    return timed_route
+
+  @classmethod
+  def from_gpx(cls, gpx_source_path, speed, frequency):
+    """Creates route from GPX file and initializes TimedRoute object.
+
+    Args:
+      gpx_source_path: path to gpx file to parse for route
+      speed: float, speed of route in meters/second
+      frequency: float, points per second for timed route (Hz)
+
+    Returns:
+      initialized and upsampled TimedRoute object
+    """
+    route, distances = cls._generate_route_from_gpx(gpx_source_path)
+    timed_route = cls(route, distances, speed, frequency)
+    timed_route.upsample_route()
+    return timed_route
 
   def upsample_route(self):
     """Upsample the TimedRoute to match the desired speed and frequency.
@@ -160,5 +243,7 @@ class TimedRoute(Route):
 
 
 def _write_to_csv(file_name, value_array):
+  if not os.path.exists(FILE_FOLDER_PATH):
+    os.makedirs(FILE_FOLDER_PATH)
   with open(file_name, "w") as csv_file:
     csv.writer(csv_file).writerows(value_array)

@@ -31,19 +31,19 @@ def main():
   location2 = Location(37.421624, -122.096472)
 
   # gives 14 points of information straight from api
-  route = Route(location1, location2)
+  route = Route.from_start_and_end(location1, location2)
   route.write_route("routetestfile.csv")
 
   # gives 16459 points at 7 points/meter & 10 points/second
-  user_motion = TimedRoute(location1, location2, TRANSPORT_SPEEDS["walking"], TEN_HZ)
+  user_motion = TimedRoute.from_start_and_end(location1, location2, TRANSPORT_SPEEDS["walking"], TEN_HZ)
   user_motion.write_route("userwalking.csv")
 
   # gives 9226 points at 4 points/meter & 10 points/second
-  user_motion = TimedRoute(location1, location2, TRANSPORT_SPEEDS["running"], TEN_HZ)
+  user_motion = TimedRoute.from_start_and_end(location1, location2, TRANSPORT_SPEEDS["running"], TEN_HZ)
   user_motion.write_route("userrunning.csv")
 
   # gives 3289 points at 1.4 points/meter & 10 points/second
-  user_motion = TimedRoute(location1, location2, TRANSPORT_SPEEDS["biking"], TEN_HZ)
+  user_motion = TimedRoute.from_start_and_end(location1, location2, TRANSPORT_SPEEDS["biking"], TEN_HZ)
   user_motion.write_route("userbiking.csv")
 
 if __name__ == "__main__":

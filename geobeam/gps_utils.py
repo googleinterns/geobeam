@@ -17,6 +17,8 @@
 
 import math
 
+from geopy import distance
+
 # World Geodetic System defined constants
 _WGS84_EARTH_RADIUS = 6378137.0
 _WGS84_ECCENTRICITY = 0.0818191908426
@@ -83,6 +85,7 @@ def geodetic_to_cartesian(latitude, longitude, altitude):
   z = ((1.0-eccentricity_sq)*n_vector + altitude)*sin_latitude
   return (x, y, z)
 
+
 def cartesian_to_geodetic(x, y, z):
   """Convert a ECEF cartesian coordinate to a lat/lng/alt geodetic coordinate.
 
@@ -98,14 +101,14 @@ def cartesian_to_geodetic(x, y, z):
   Returns:
     A tuple of (latitude, longitude, altitude) with latitude and longitude
     as floats in Decimal Degrees and altitiude as a float in meters. If there
-    is no valid lat/lon/alt for the given xyz vector, a vector 
+    is no valid lat/lon/alt for the given xyz vector, a vector
     of (0.0, 0.0, -6378137.0) is returned
   """
-  eps = 1E-3 # convergence criteria
+  eps = 1E-3  # convergence criteria
   eccentricity_sq = _WGS84_ECCENTRICITY**2
 
   norm_vector = math.sqrt(x*x+y*y+z*z)
-  if (norm_vector < eps):
+  if norm_vector < eps:
     # Invalid ECEF vector
     return (0.0, 0.0, -_WGS84_EARTH_RADIUS)
 
@@ -119,13 +122,26 @@ def cartesian_to_geodetic(x, y, z):
     n = _WGS84_EARTH_RADIUS / math.sqrt(1.0-eccentricity_sq*sin_lat*sin_lat)
     dz_new = n*eccentricity_sq*sin_lat
 
-    if (math.fabs(dz-dz_new) < eps):
+    if math.fabs(dz-dz_new) < eps:
       break
 
     dz = dz_new
 
   latitude = math.degrees(math.atan2(zdz, math.sqrt(rho_sq)))
-  longitude= math.degrees(math.atan2(y, x))
+  longitude = math.degrees(math.atan2(y, x))
   altitude = nh - n
 
   return (latitude, longitude, altitude)
+
+
+def calculate_distance(location1, location2):
+  """Calculate geodesic distance between two coordinates with ellipsoidal earth model.
+
+  Args:
+    location1: tuple of (latitude, longitude) as floats in Decimal Degrees
+    location2: tuple of (latitude, longitude) as floats in Decimal Degrees
+
+  Returns:
+    A float in meters of the distance between the two points
+  """
+  return distance.geodesic(location1, location2).meters
